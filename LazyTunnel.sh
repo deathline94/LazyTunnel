@@ -3,6 +3,7 @@
 SERVICE_FILE="/etc/systemd/system/iptables.service"
 IP_FILE="/root/ip.txt"
 SCRIPT_FILE="/root/LazyTunnel.sh"
+HOSTS_FILE="/etc/hosts"
 
 # Function to download the script
 download_script() {
@@ -12,6 +13,16 @@ download_script() {
 
 # Function to install IPTables rules and set up service
 install() {
+  # Check and update /etc/hosts
+  hostname=$(hostname)
+  if ! grep -q "127.0.0.1 ${hostname}" "${HOSTS_FILE}"; then
+    echo "127.0.0.1 ${hostname}" >> "${HOSTS_FILE}"
+    echo "Added 127.0.0.1 ${hostname} to ${HOSTS_FILE}"
+  fi
+  
+  # Enable IP forwarding
+  sysctl net.ipv4.ip_forward=1
+
   mainland_ip=$(curl -s https://api.ipify.org)
   echo "Mainland IP Address (automatically detected): ${mainland_ip}"
   read -p "Foreign IP Address: " foreign_ip
@@ -24,9 +35,6 @@ install() {
   iptables -t nat -A PREROUTING -p tcp --dport 22 -j DNAT --to-destination "${mainland_ip}"
   iptables -t nat -A PREROUTING -j DNAT --to-destination "${foreign_ip}"
   iptables -t nat -A POSTROUTING -j MASQUERADE
-
-  # Enable IP forwarding
-  sysctl net.ipv4.ip_forward=1
 
   # Create and enable systemd service
   echo "[Unit]
@@ -67,9 +75,6 @@ uninstall() {
   iptables -P INPUT ACCEPT
   iptables -P FORWARD ACCEPT
   iptables -P OUTPUT ACCEPT
-
-  # Disable IP forwarding
-  sysctl net.ipv4.ip_forward=0
 
   # Stop and disable the service
   sudo systemctl stop iptables
