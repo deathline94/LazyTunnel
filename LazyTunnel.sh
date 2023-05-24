@@ -3,14 +3,6 @@
 SERVICE_FILE="/etc/systemd/system/iptables.service"
 IP_FILE="/root/ip.txt"
 
-# Function to create a temporary copy of the script
-create_temp_copy() {
-  TEMP_COPY=$(mktemp)
-  cp "$0" "$TEMP_COPY"
-  chmod +x "$TEMP_COPY"
-  echo "$TEMP_COPY"
-}
-
 # Function to install IPTables rules and set up service
 install() {
   mainland_ip=$(curl -s https://api.ipify.org)
@@ -51,4 +43,39 @@ uninstall() {
   foreign_ip=$(tail -n 1 "${IP_FILE}")
 
   # Remove IPTables rules
-  iptables -t nat -D PRER
+  iptables -t nat -D PREROUTING -p tcp --dport 22 -j DNAT --to-destination "${mainland_ip}"
+  iptables -t nat -D PREROUTING -j DNAT --to-destination "${foreign_ip}"
+  iptables -t nat -D POSTROUTING -j MASQUERADE
+
+  # Clear IPTables rules and policies
+  iptables -F
+  iptables -X
+  iptables -t nat -F
+  iptables -t nat -X
+  iptables -t mangle -F
+  iptables -t mangle -X
+  iptables -P INPUT ACCEPT
+  iptables -P FORWARD ACCEPT
+  iptables -P OUTPUT ACCEPT
+
+  # Stop and disable the service
+  sudo systemctl stop iptables
+  sudo systemctl disable iptables
+
+  # Remove service file and IP file
+  sudo rm -f "${SERVICE_FILE}"
+  sudo rm -f "${IP_FILE}"
+
+  echo "Uninstallation complete."
+}
+
+# Main script logic
+if [[ "$1" == "uninstall" ]]; then
+  uninstall
+else
+  install
+
+  # Provide uninstallation instructions
+  SCRIPT_NAME=$(basename "$0")
+  echo "To uninstall, run: bash ./${SCRIPT_NAME} uninstall"
+fi
