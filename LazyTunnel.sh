@@ -6,7 +6,7 @@ IP_FILE="/root/ip.txt"
 
 # Function to install IPTables rules and set up service
 install() {
-  mainland_ip=$(sudo curl -s https://api.ipify.org)
+  mainland_ip=$(curl -s https://api.ipify.org)
   echo "Mainland IP Address (automatically detected): ${mainland_ip}"
   read -p "Foreign IP Address: " foreign_ip
 
