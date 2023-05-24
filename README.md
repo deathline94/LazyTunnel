@@ -16,16 +16,15 @@ During execution, the script will automatically detect your server's IP address 
 If you wish to remove the tunneling configurations, you can do it easily using the uninstall argument in the following way:
 
 ```
-bash <(curl -fsSL https://raw.githubusercontent.com/deathline94/LazyTunnel/main/LazyTunnel.sh) uninstall
+bash /root/LazyTunnel.sh uninstall
 ```
 After that, Just reboot the VPS.
 
 ### ⚠️ Important Notes
 
-Remember two things:
-## You have to be the root user to run the script
+Remember:
 
-## You have to reboot the server before you can uninstall or it wont work
+## You have to be the root user to run the script
 
 Please note that this script modifies your IPTables rules and sets up IP forwarding, which could impact the security posture of your server. Understand the implications before usage and use it responsibly.
 
