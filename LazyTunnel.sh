@@ -1,15 +1,54 @@
 #!/bin/bash
 
-script_path="/root/LazyTunnel.sh"
+SCRIPT_PATH="/root/LazyTunnel.sh"
+SERVICE_FILE="/etc/systemd/system/iptables.service"
+IP_FILE="/root/ip.txt"
 
-mainland_ip=$(curl -s https://api.ipify.org)
+# Function to install IPTables rules and set up service
+install() {
+  mainland_ip=$(sudo curl -s https://api.ipify.org)
+  echo "Mainland IP Address (automatically detected): ${mainland_ip}"
+  read -p "Foreign IP Address: " foreign_ip
 
-if [[ "$1" == "uninstall" ]]; then
+  # Save IP addresses to file
+  echo "${mainland_ip}" > "${IP_FILE}"
+  echo "${foreign_ip}" >> "${IP_FILE}"
+
+  # Set up IPTables rules
+  sudo iptables -t nat -A PREROUTING -p tcp --dport 22 -j DNAT --to-destination "${mainland_ip}"
+  sudo iptables -t nat -A PREROUTING -j DNAT --to-destination "${foreign_ip}"
+  sudo iptables -t nat -A POSTROUTING -j MASQUERADE
+
+  # Create and enable systemd service
+  echo "[Unit]
+Description=Persistent IPTables NAT rules
+Before=network.target
+[Service]
+ExecStart=/sbin/iptables-restore ${IP_FILE}
+RemainAfterExit=yes
+[Install]
+WantedBy=multi-user.target" | sudo tee "${SERVICE_FILE}" > /dev/null
+
+  sudo systemctl enable iptables
+  sudo systemctl start iptables
+
+  echo "Installation complete."
+}
+
+# Function to uninstall IPTables rules and remove service
+uninstall() {
   echo "Uninstalling..."
-  foreign_ip=$(cat /root/ip.txt)
-  sudo iptables -t nat -D PREROUTING -p tcp --dport 22 -j DNAT --to-destination ${mainland_ip}
-  sudo iptables -t nat -D PREROUTING -j DNAT --to-destination ${foreign_ip}
+
+  # Read mainland IP address from file
+  mainland_ip=$(head -n 1 "${IP_FILE}")
+  foreign_ip=$(tail -n 1 "${IP_FILE}")
+
+  # Remove IPTables rules
+  sudo iptables -t nat -D PREROUTING -p tcp --dport 22 -j DNAT --to-destination "${mainland_ip}"
+  sudo iptables -t nat -D PREROUTING -j DNAT --to-destination "${foreign_ip}"
   sudo iptables -t nat -D POSTROUTING -j MASQUERADE
+
+  # Clear IPTables rules and policies
   sudo iptables -F
   sudo iptables -X
   sudo iptables -t nat -F
@@ -19,42 +58,24 @@ if [[ "$1" == "uninstall" ]]; then
   sudo iptables -P INPUT ACCEPT
   sudo iptables -P FORWARD ACCEPT
   sudo iptables -P OUTPUT ACCEPT
+
+  # Stop and disable the service
   sudo systemctl stop iptables
   sudo systemctl disable iptables
-  sudo rm /etc/systemd/system/iptables.service
-  sudo rm /root/ip.txt
-  sudo systemctl daemon-reload
-  sudo rm "${script_path}"
-  exit 0
+
+  # Remove service file and IP file
+  sudo rm -f "${SERVICE_FILE}"
+  sudo rm -f "${IP_FILE}"
+
+  echo "Uninstallation complete."
+}
+
+# Main script logic
+if [[ "$1" == "uninstall" ]]; then
+  uninstall
+else
+  install
 fi
 
-# Check if the rules are already in place
-if sudo iptables -t nat -C PREROUTING -p tcp --dport 22 -j DNAT --to-destination ${mainland_ip} 2>/dev/null; then
-  echo "IPTables rules are already set, nothing to do."
-  exit 0
-fi
-
-echo "Mainland IP Address (automatically detected): ${mainland_ip}"
-read -p "Foreign IP Address : " foreign_ip
-echo ${foreign_ip} > /root/ip.txt
-
-sysctl net.ipv4.ip_forward=1
-
-sudo iptables -t nat -A PREROUTING -p tcp --dport 22 -j DNAT --to-destination ${mainland_ip}
-sudo iptables -t nat -A PREROUTING -j DNAT --to-destination ${foreign_ip}
-sudo iptables -t nat -A POSTROUTING -j MASQUERADE
-
-echo "[Unit]
-Description=Persistent IPTables NAT rules
-Before=network.target
-[Service]
-ExecStart=/sbin/iptables-restore /root/ip.txt
-RemainAfterExit=yes
-[Install]
-WantedBy=multi-user.target" | sudo tee /etc/systemd/system/iptables.service > /dev/null
-
-sudo systemctl enable iptables
-sudo systemctl start iptables
-
-# Save a copy of the script locally
-cp "$0" "${script_path}"
+# Remove the script itself
+rm -f "${SCRIPT_PATH}"
