@@ -10,7 +10,7 @@ copy_script() {
   TARGET_PATH="/root/${SCRIPT_NAME}"
 
   if [ "${SCRIPT_PATH}" != "${TARGET_PATH}" ]; then
-    rsync -a "${SCRIPT_PATH}" "${TARGET_PATH}"
+    install -m 755 "${SCRIPT_PATH}" "${TARGET_PATH}"
   fi
 }
 
