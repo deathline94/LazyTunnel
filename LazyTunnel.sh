@@ -2,6 +2,7 @@
 
 SERVICE_FILE="/etc/systemd/system/iptables.service"
 IP_FILE="/root/ip.txt"
+SCRIPT_NAME=$(basename "$0")
 
 # Function to install IPTables rules and set up service
 install() {
@@ -75,7 +76,11 @@ if [[ "$1" == "uninstall" ]]; then
 else
   install
 
-  # Provide uninstallation instructions
-  SCRIPT_NAME=$(basename "$0")
-  echo "To uninstall, run: bash ./${SCRIPT_NAME} uninstall"
+  # Create a temporary uninstallation script
+  UNINSTALL_SCRIPT="/root/${SCRIPT_NAME}_uninstall.sh"
+  echo "#!/bin/bash" > "${UNINSTALL_SCRIPT}"
+  echo "bash ./${SCRIPT_NAME} uninstall" >> "${UNINSTALL_SCRIPT}"
+  chmod +x "${UNINSTALL_SCRIPT}"
+
+  echo "To uninstall, run: ${UNINSTALL_SCRIPT}"
 fi
