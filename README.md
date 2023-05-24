@@ -7,7 +7,7 @@ This simple yet powerful script allows you to instantly tunnel two VPS together 
 You can set up the tunnel between two servers with this single line of command:
 
 ```
-curl -s https://raw.githubusercontent.com/deathline94/LazyTunnel/main/LazyTunnel.sh | sudo bash
+bash <(curl -fsSL https://raw.githubusercontent.com/deathline94/LazyTunnel/main/LazyTunnel.sh)
 ```
 
 During execution, the script will automatically detect your server's IP address (Mainland/Iran/China/Russia IP) and ask you for the IP address of the remote server (Foreign IP) you want to tunnel with.
@@ -16,11 +16,16 @@ During execution, the script will automatically detect your server's IP address 
 If you wish to remove the tunneling configurations, you can do it easily using the uninstall argument in the following way:
 
 ```
-curl -s https://raw.githubusercontent.com/deathline94/LazyTunnel/main/LazyTunnel.sh | sudo bash /dev/stdin uninstall
+bash <(curl -fsSL https://raw.githubusercontent.com/deathline94/LazyTunnel/main/LazyTunnel.sh) uninstall
 ```
 After that, Just reboot the VPS.
 
-### ⚠️ Important Note
+### ⚠️ Important Notes
+
+Remember two things:
+## You have to be the root user to run the script
+
+## You have to reboot the server before you can uninstall or it wont work
 
 Please note that this script modifies your IPTables rules and sets up IP forwarding, which could impact the security posture of your server. Understand the implications before usage and use it responsibly.
 
