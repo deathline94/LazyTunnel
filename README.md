@@ -26,6 +26,8 @@ Remember:
 
 ## You have to be the root user to run the script
 
+### Tested fully on arvancloud infrastructures and it works fine . Should work everywhere.
+
 Please note that this script modifies your IPTables rules and sets up IP forwarding, which could impact the security posture of your server. Understand the implications before usage and use it responsibly.
 
-If you encounter any issues or have suggestions, feel free to open an issue in this repository. Or contact me on Twitter at @namelesghoul
+If you encounter any issues or have suggestions, feel free to open an issue in this repository. Or contact me on Twitter at @namelesghoul.
