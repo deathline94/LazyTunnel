@@ -22,6 +22,7 @@ if [[ "$1" == "uninstall" ]]; then
   systemctl disable iptables
   rm /etc/systemd/system/iptables.service
   rm /root/ip.txt
+  rm /root/LazyTunnel.sh
   systemctl daemon-reload
   rm "${script_path}"
   exit 0
