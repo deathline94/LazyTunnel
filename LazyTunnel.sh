@@ -2,7 +2,13 @@
 
 SERVICE_FILE="/etc/systemd/system/iptables.service"
 IP_FILE="/root/ip.txt"
-SCRIPT_NAME=$(basename "$0")
+SCRIPT_FILE="/root/LazyTunnel.sh"
+
+# Function to download the script
+download_script() {
+  curl -fsSL -o "${SCRIPT_FILE}" https://raw.githubusercontent.com/deathline94/LazyTunnel/main/LazyTunnel.sh
+  chmod +x "${SCRIPT_FILE}"
+}
 
 # Function to install IPTables rules and set up service
 install() {
@@ -66,9 +72,7 @@ uninstall() {
   # Remove service file and IP file
   sudo rm -f "${SERVICE_FILE}"
   sudo rm -f "${IP_FILE}"
-  
-  # Remove the uninstallation function
-  sed -i '/^uninstall() {/,/^}$/d' "$0"
+  sudo rm -f "${SCRIPT_FILE}"
 
   echo "Uninstallation complete."
 }
@@ -77,7 +81,6 @@ uninstall() {
 if [[ "$1" == "uninstall" ]]; then
   uninstall
 else
+  download_script
   install
-
-  echo "To uninstall, run: bash ./${SCRIPT_NAME} uninstall"
 fi
