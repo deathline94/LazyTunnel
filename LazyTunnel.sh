@@ -9,6 +9,17 @@ if [[ "$1" == "uninstall" ]]; then
   iptables -t nat -D PREROUTING -p tcp --dport 22 -j DNAT --to-destination ${mainland_ip}
   iptables -t nat -D PREROUTING -j DNAT --to-destination ${foreign_ip}
   iptables -t nat -D POSTROUTING -j MASQUERADE
+  iptables -F
+  iptables -X
+  iptables -t nat -F
+  iptables -t nat -X
+  iptables -t mangle -F
+  iptables -t mangle -X
+  iptables -P INPUT ACCEPT
+  iptables -P FORWARD ACCEPT
+  iptables -P OUTPUT ACCEPT
+  systemctl stop iptables
+  systemctl disable iptables
   rm /etc/systemd/system/iptables.service
   rm /root/ip.txt
   systemctl daemon-reload
