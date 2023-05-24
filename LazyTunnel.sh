@@ -2,10 +2,22 @@
 
 SERVICE_FILE="/etc/systemd/system/iptables.service"
 IP_FILE="/root/ip.txt"
-SCRIPT_FILE="/root/LazyTunnel.sh"
+
+# Function to copy script to /root directory
+copy_script() {
+  SCRIPT_PATH=$(readlink -f "$0")
+  SCRIPT_NAME=$(basename "$0")
+  TARGET_PATH="/root/${SCRIPT_NAME}"
+
+  if [ "${SCRIPT_PATH}" != "${TARGET_PATH}" ]; then
+    sudo cp "${SCRIPT_PATH}" "${TARGET_PATH}"
+  fi
+}
 
 # Function to install IPTables rules and set up service
 install() {
+  copy_script
+
   mainland_ip=$(curl -s https://api.ipify.org)
   echo "Mainland IP Address (automatically detected): ${mainland_ip}"
   read -p "Foreign IP Address: " foreign_ip
@@ -15,9 +27,9 @@ install() {
   echo "${foreign_ip}" >> "${IP_FILE}"
 
   # Set up IPTables rules
-  iptables -t nat -A PREROUTING -p tcp --dport 22 -j DNAT --to-destination "${mainland_ip}"
-  iptables -t nat -A PREROUTING -j DNAT --to-destination "${foreign_ip}"
-  iptables -t nat -A POSTROUTING -j MASQUERADE
+  sudo iptables -t nat -A PREROUTING -p tcp --dport 22 -j DNAT --to-destination "${mainland_ip}"
+  sudo iptables -t nat -A PREROUTING -j DNAT --to-destination "${foreign_ip}"
+  sudo iptables -t nat -A POSTROUTING -j MASQUERADE
 
   # Create and enable systemd service
   echo "[Unit]
@@ -44,20 +56,20 @@ uninstall() {
   foreign_ip=$(tail -n 1 "${IP_FILE}")
 
   # Remove IPTables rules
-  iptables -t nat -D PREROUTING -p tcp --dport 22 -j DNAT --to-destination "${mainland_ip}"
-  iptables -t nat -D PREROUTING -j DNAT --to-destination "${foreign_ip}"
-  iptables -t nat -D POSTROUTING -j MASQUERADE
+  sudo iptables -t nat -D PREROUTING -p tcp --dport 22 -j DNAT --to-destination "${mainland_ip}"
+  sudo iptables -t nat -D PREROUTING -j DNAT --to-destination "${foreign_ip}"
+  sudo iptables -t nat -D POSTROUTING -j MASQUERADE
 
   # Clear IPTables rules and policies
-  iptables -F
-  iptables -X
-  iptables -t nat -F
-  iptables -t nat -X
-  iptables -t mangle -F
-  iptables -t mangle -X
-  iptables -P INPUT ACCEPT
-  iptables -P FORWARD ACCEPT
-  iptables -P OUTPUT ACCEPT
+  sudo iptables -F
+  sudo iptables -X
+  sudo iptables -t nat -F
+  sudo iptables -t nat -X
+  sudo iptables -t mangle -F
+  sudo iptables -t mangle -X
+  sudo iptables -P INPUT ACCEPT
+  sudo iptables -P FORWARD ACCEPT
+  sudo iptables -P OUTPUT ACCEPT
 
   # Stop and disable the service
   sudo systemctl stop iptables
@@ -76,6 +88,3 @@ if [[ "$1" == "uninstall" ]]; then
 else
   install
 fi
-
-# Copy the script to /root directory
-cp "${0}" "${SCRIPT_FILE}"
