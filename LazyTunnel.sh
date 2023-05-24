@@ -48,4 +48,36 @@ uninstall() {
   iptables -t nat -D PREROUTING -j DNAT --to-destination "${foreign_ip}"
   iptables -t nat -D POSTROUTING -j MASQUERADE
 
-  #
+  # Clear IPTables rules and policies
+  iptables -F
+  iptables -X
+  iptables -t nat -F
+  iptables -t nat -X
+  iptables -t mangle -F
+  iptables -t mangle -X
+  iptables -P INPUT ACCEPT
+  iptables -P FORWARD ACCEPT
+  iptables -P OUTPUT ACCEPT
+
+  # Stop and disable the service
+  sudo systemctl stop iptables
+  sudo systemctl disable iptables
+
+  # Remove service file and IP file
+  sudo rm -f "${SERVICE_FILE}"
+  sudo rm -f "${IP_FILE}"
+  
+  # Remove the uninstallation function
+  sed -i '/^uninstall() {/,/^}$/d' "$0"
+
+  echo "Uninstallation complete."
+}
+
+# Main script logic
+if [[ "$1" == "uninstall" ]]; then
+  uninstall
+else
+  install
+
+  echo "To uninstall, run: bash ./${SCRIPT_NAME} uninstall"
+fi
