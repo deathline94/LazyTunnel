@@ -1,8 +1,8 @@
 #!/bin/bash
 
-SCRIPT_PATH="/root/LazyTunnel.sh"
 SERVICE_FILE="/etc/systemd/system/iptables.service"
 IP_FILE="/root/ip.txt"
+SCRIPT_FILE="/root/LazyTunnel.sh"
 
 # Function to install IPTables rules and set up service
 install() {
@@ -15,9 +15,9 @@ install() {
   echo "${foreign_ip}" >> "${IP_FILE}"
 
   # Set up IPTables rules
-  sudo iptables -t nat -A PREROUTING -p tcp --dport 22 -j DNAT --to-destination "${mainland_ip}"
-  sudo iptables -t nat -A PREROUTING -j DNAT --to-destination "${foreign_ip}"
-  sudo iptables -t nat -A POSTROUTING -j MASQUERADE
+  iptables -t nat -A PREROUTING -p tcp --dport 22 -j DNAT --to-destination "${mainland_ip}"
+  iptables -t nat -A PREROUTING -j DNAT --to-destination "${foreign_ip}"
+  iptables -t nat -A POSTROUTING -j MASQUERADE
 
   # Create and enable systemd service
   echo "[Unit]
@@ -44,20 +44,20 @@ uninstall() {
   foreign_ip=$(tail -n 1 "${IP_FILE}")
 
   # Remove IPTables rules
-  sudo iptables -t nat -D PREROUTING -p tcp --dport 22 -j DNAT --to-destination "${mainland_ip}"
-  sudo iptables -t nat -D PREROUTING -j DNAT --to-destination "${foreign_ip}"
-  sudo iptables -t nat -D POSTROUTING -j MASQUERADE
+  iptables -t nat -D PREROUTING -p tcp --dport 22 -j DNAT --to-destination "${mainland_ip}"
+  iptables -t nat -D PREROUTING -j DNAT --to-destination "${foreign_ip}"
+  iptables -t nat -D POSTROUTING -j MASQUERADE
 
   # Clear IPTables rules and policies
-  sudo iptables -F
-  sudo iptables -X
-  sudo iptables -t nat -F
-  sudo iptables -t nat -X
-  sudo iptables -t mangle -F
-  sudo iptables -t mangle -X
-  sudo iptables -P INPUT ACCEPT
-  sudo iptables -P FORWARD ACCEPT
-  sudo iptables -P OUTPUT ACCEPT
+  iptables -F
+  iptables -X
+  iptables -t nat -F
+  iptables -t nat -X
+  iptables -t mangle -F
+  iptables -t mangle -X
+  iptables -P INPUT ACCEPT
+  iptables -P FORWARD ACCEPT
+  iptables -P OUTPUT ACCEPT
 
   # Stop and disable the service
   sudo systemctl stop iptables
@@ -77,5 +77,5 @@ else
   install
 fi
 
-# Remove the script itself
-rm -f "${SCRIPT_PATH}"
+# Copy the script to /root directory
+cp "${0}" "${SCRIPT_FILE}"
