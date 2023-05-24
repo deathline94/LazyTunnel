@@ -25,6 +25,9 @@ install() {
   iptables -t nat -A PREROUTING -j DNAT --to-destination "${foreign_ip}"
   iptables -t nat -A POSTROUTING -j MASQUERADE
 
+  # Enable IP forwarding
+  sysctl net.ipv4.ip_forward=1
+
   # Create and enable systemd service
   echo "[Unit]
 Description=Persistent IPTables NAT rules
@@ -64,6 +67,9 @@ uninstall() {
   iptables -P INPUT ACCEPT
   iptables -P FORWARD ACCEPT
   iptables -P OUTPUT ACCEPT
+
+  # Disable IP forwarding
+  sysctl net.ipv4.ip_forward=0
 
   # Stop and disable the service
   sudo systemctl stop iptables
