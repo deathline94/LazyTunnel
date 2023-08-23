@@ -1,5 +1,20 @@
 #!/bin/bash
 
+# Function to print characters with delay
+print_with_delay() {
+    text="$1"
+    delay="$2"
+    for ((i = 0; i < ${#text}; i++)); do
+        echo -n "${text:$i:1}"
+        sleep $delay
+    done
+    echo
+}
+
+# Introduction animation
+print_with_delay "LazyTunnel by DEATHLINE | @NamelesGhoul" 0.1
+
+
 SERVICE_FILE="/etc/systemd/system/iptables.service"
 IP_FILE="/root/ip.txt"
 SCRIPT_FILE="/root/LazyTunnel.sh"
@@ -46,7 +61,7 @@ RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target" | sudo tee "${SERVICE_FILE}" > /dev/null
 
-  sudo systemctl enable iptables
+  sudo systemctl enable iptables > /dev/null 2>&1
   sudo systemctl start iptables
 
   echo "Installation complete."
@@ -78,7 +93,7 @@ uninstall() {
 
   # Stop and disable the service
   sudo systemctl stop iptables
-  sudo systemctl disable iptables
+  sudo systemctl disable iptables > /dev/null 2>&1
 
   # Remove service file and IP file
   sudo rm -f "${SERVICE_FILE}"
