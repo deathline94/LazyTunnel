@@ -14,7 +14,6 @@ print_with_delay() {
 # Introduction animation
 print_with_delay "LazyTunnel by DEATHLINE | @NamelesGhoul" 0.1
 
-
 SERVICE_FILE="/etc/systemd/system/iptables.service"
 IP_FILE="/root/ip.txt"
 SCRIPT_FILE="/root/LazyTunnel.sh"
@@ -26,18 +25,42 @@ download_script() {
   chmod +x "${SCRIPT_FILE}"
 }
 
+# Function to get the current SSH port
+get_ssh_port() {
+  ssh_port=$(grep -E "^Port " /etc/ssh/sshd_config | awk '{print $2}')
+  if [ -z "$ssh_port" ]; then
+    ssh_port=22
+  fi
+  echo "Detected SSH port: $ssh_port"
+}
+
 # Function to install IPTables rules and set up service
 install() {
+  # Get current SSH port
+  get_ssh_port
+
+  # Ask user whether to tunnel all ports or specific ports
+  read -p "Do you want to tunnel all ports (excluding SSH port $ssh_port)? [y/n]: " tunnel_all
+  if [[ "$tunnel_all" == "y" || "$tunnel_all" == "Y" ]]; then
+    tunnel_all_ports=true
+  else
+    tunnel_all_ports=false
+    read -p "Please enter the ports you want to tunnel, separated by spaces (e.g., 80 443 1194): " user_ports
+    # Convert user_ports into an array
+    IFS=' ' read -r -a ports_array <<< "$user_ports"
+  fi
+
   # Check and update /etc/hosts
   hostname=$(hostname)
   if ! grep -q "127.0.0.1 ${hostname}" "${HOSTS_FILE}"; then
     echo "127.0.0.1 ${hostname}" >> "${HOSTS_FILE}"
     echo "Added 127.0.0.1 ${hostname} to ${HOSTS_FILE}"
   fi
-  
-  # Enable IP forwarding
-  sysctl net.ipv4.ip_forward=1
 
+  # Enable IP forwarding
+  sysctl -w net.ipv4.ip_forward=1
+
+  # Get mainland IP address
   mainland_ip=$(curl -s https://api.ipify.org)
   echo "Mainland IP Address (automatically detected): ${mainland_ip}"
   read -p "Foreign IP Address: " foreign_ip
@@ -45,10 +68,34 @@ install() {
   # Save IP addresses to file
   echo "${mainland_ip}" > "${IP_FILE}"
   echo "${foreign_ip}" >> "${IP_FILE}"
+  echo "${ssh_port}" >> "${IP_FILE}"
+
+  # Flush existing IPTables rules
+  iptables -F
+  iptables -t nat -F
 
   # Set up IPTables rules
-  iptables -t nat -A PREROUTING -p tcp --dport 22 -j DNAT --to-destination "${mainland_ip}"
-  iptables -t nat -A PREROUTING -j DNAT --to-destination "${foreign_ip}"
+  if [ "$tunnel_all_ports" = true ]; then
+    # Exclude SSH port from forwarding
+    iptables -t nat -A PREROUTING -p tcp --dport "$ssh_port" -j DNAT --to-destination "${mainland_ip}"
+    iptables -t nat -A PREROUTING -p tcp -j DNAT --to-destination "${foreign_ip}"
+  else
+    # Forward only specified ports
+    for port in "${ports_array[@]}"; do
+      if [ "$port" != "$ssh_port" ]; then
+        iptables -t nat -A PREROUTING -p tcp --dport "$port" -j DNAT --to-destination "${foreign_ip}"
+      else
+        # Exclude SSH port
+        iptables -t nat -A PREROUTING -p tcp --dport "$ssh_port" -j DNAT --to-destination "${mainland_ip}"
+      fi
+    done
+    # Ensure SSH port is forwarded to mainland IP
+    if [[ ! " ${ports_array[@]} " =~ " ${ssh_port} " ]]; then
+      iptables -t nat -A PREROUTING -p tcp --dport "$ssh_port" -j DNAT --to-destination "${mainland_ip}"
+    fi
+  fi
+
+  # Set up POSTROUTING
   iptables -t nat -A POSTROUTING -j MASQUERADE
 
   # Create and enable systemd service
@@ -56,10 +103,16 @@ install() {
 Description=Persistent IPTables NAT rules
 Before=network.target
 [Service]
-ExecStart=/sbin/iptables-restore ${IP_FILE}
+Type=oneshot
+ExecStart=/sbin/iptables-restore < /etc/iptables/rules.v4
+ExecReload=/sbin/iptables-restore < /etc/iptables/rules.v4
 RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target" | sudo tee "${SERVICE_FILE}" > /dev/null
+
+  # Save IPTables rules to a file
+  mkdir -p /etc/iptables
+  iptables-save > /etc/iptables/rules.v4
 
   sudo systemctl enable iptables > /dev/null 2>&1
   sudo systemctl start iptables
@@ -71,34 +124,24 @@ WantedBy=multi-user.target" | sudo tee "${SERVICE_FILE}" > /dev/null
 uninstall() {
   echo "Uninstalling..."
 
-  # Read mainland IP address from file
-  mainland_ip=$(head -n 1 "${IP_FILE}")
-  foreign_ip=$(tail -n 1 "${IP_FILE}")
+  # Read IP addresses from file
+  mainland_ip=$(sed -n '1p' "${IP_FILE}")
+  foreign_ip=$(sed -n '2p' "${IP_FILE}")
+  ssh_port=$(sed -n '3p' "${IP_FILE}")
 
-  # Remove IPTables rules
-  iptables -t nat -D PREROUTING -p tcp --dport 22 -j DNAT --to-destination "${mainland_ip}"
-  iptables -t nat -D PREROUTING -j DNAT --to-destination "${foreign_ip}"
-  iptables -t nat -D POSTROUTING -j MASQUERADE
-
-  # Clear IPTables rules and policies
+  # Flush IPTables rules
   iptables -F
-  iptables -X
   iptables -t nat -F
-  iptables -t nat -X
-  iptables -t mangle -F
-  iptables -t mangle -X
-  iptables -P INPUT ACCEPT
-  iptables -P FORWARD ACCEPT
-  iptables -P OUTPUT ACCEPT
 
   # Stop and disable the service
   sudo systemctl stop iptables
   sudo systemctl disable iptables > /dev/null 2>&1
 
-  # Remove service file and IP file
+  # Remove service file, IP file, and IPTables rules file
   sudo rm -f "${SERVICE_FILE}"
   sudo rm -f "${IP_FILE}"
   sudo rm -f "${SCRIPT_FILE}"
+  sudo rm -f /etc/iptables/rules.v4
 
   echo "Uninstallation complete."
 }
