@@ -104,8 +104,8 @@ Description=Persistent IPTables NAT rules
 Before=network.target
 [Service]
 Type=oneshot
-ExecStart=/sbin/iptables-restore < /etc/iptables/rules.v4
-ExecReload=/sbin/iptables-restore < /etc/iptables/rules.v4
+ExecStart=/usr/sbin/iptables-restore /etc/iptables/rules.v4
+ExecReload=/usr/sbin/iptables-restore /etc/iptables/rules.v4
 RemainAfterExit=yes
 [Install]
 WantedBy=multi-user.target" | sudo tee "${SERVICE_FILE}" > /dev/null
