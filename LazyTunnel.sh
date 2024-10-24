@@ -74,16 +74,19 @@ install() {
   iptables -F
   iptables -t nat -F
 
-  # Set up IPTables rules
+  # Set up IPTables rules for TCP, UDP, and ICMP
   if [ "$tunnel_all_ports" = true ]; then
     # Exclude SSH port from forwarding
     iptables -t nat -A PREROUTING -p tcp --dport "$ssh_port" -j DNAT --to-destination "${mainland_ip}"
     iptables -t nat -A PREROUTING -p tcp -j DNAT --to-destination "${foreign_ip}"
+    iptables -t nat -A PREROUTING -p udp -j DNAT --to-destination "${foreign_ip}"
+    iptables -t nat -A PREROUTING -p icmp -j DNAT --to-destination "${foreign_ip}"
   else
-    # Forward only specified ports
+    # Forward only specified ports for TCP, UDP, and also allow ICMP
     for port in "${ports_array[@]}"; do
       if [ "$port" != "$ssh_port" ]; then
         iptables -t nat -A PREROUTING -p tcp --dport "$port" -j DNAT --to-destination "${foreign_ip}"
+        iptables -t nat -A PREROUTING -p udp --dport "$port" -j DNAT --to-destination "${foreign_ip}"
       else
         # Exclude SSH port
         iptables -t nat -A PREROUTING -p tcp --dport "$ssh_port" -j DNAT --to-destination "${mainland_ip}"
@@ -95,7 +98,10 @@ install() {
     fi
   fi
 
-  # Set up POSTROUTING
+  # Always forward ICMP (for ping, etc.)
+  iptables -t nat -A PREROUTING -p icmp -j DNAT --to-destination "${foreign_ip}"
+
+  # Set up POSTROUTING for TCP, UDP, and ICMP
   iptables -t nat -A POSTROUTING -j MASQUERADE
 
   # Create and enable systemd service
